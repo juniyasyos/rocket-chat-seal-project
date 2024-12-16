@@ -3,6 +3,7 @@
   become: true
   gather_facts: true
   tasks:
+
   - name: Ensure Docker is installed
     block:
     - name: Check Docker installation
@@ -23,19 +24,18 @@
         msg: "Docker installation failed. Check Docker role or system configuration."
 
   - name: Setup Telnet and server connections in the same network
-    ansible.builtin.include_tasks: ../helpers/connections.yaml
+    ansible.builtin.include_tasks: "../helpers/connections.yaml"
 
   - name: Deploy Rocket.Chat and MongoDB application
     block:
     - name: Setup Rocket.Chat and MongoDB
-      ansible.builtin.include_tasks: ../helpers/application.yaml
+      ansible.builtin.include_tasks: "../helpers/application.yaml"
 
     - name: Start MongoDB server with Docker Compose
       ansible.builtin.shell: >
         docker compose -f /home/{{ ansible_user }}/rocket-chat/mongodb.yml up -d
       register: docker_compose_up_mongo
       changed_when: "'Starting' in docker_compose_up_mongo.stdout or 'Creating' in docker_compose_up_mongo.stdout"
-      
 
     - name: Ensure nginx certificates directory exists
       ansible.builtin.file:
