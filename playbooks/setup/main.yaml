@@ -42,34 +42,44 @@
         proto: tcp
       loop: [ '80', '443', '9100', '9113', '9216', '9090', '9099', '3030', '3000', '9093' ]
 
-  - name: Deploy Rocket.Chat and MongoDB application
-    block:
-    - name: Synchronize Rocket.Chat containerization files
-      ansible.posix.synchronize:
-        src: "../../templates/azzuri-dev/separated-mongodb/"
-        dest: "/home/{{ ansible_user }}/rocket-chat/"
-        mode: push
-        recursive: yes
+    - name: Deploy Rocket.Chat and MongoDB application
+      block:
+      - name: Synchronize Rocket.Chat containerization files
+        ansible.posix.synchronize:
+          src: "../../templates/"
+          dest: "/home/{{ ansible_user }}/rocket-chat/"
+          mode: push
+          recursive: yes
+        become: true # Untuk memastikan task dijalankan dengan hak akses yang sesuai
 
-    - name: Create .env file for MongoDB
-      ansible.builtin.copy:
-        dest: "/home/{{ ansible_user }}/rocket-chat/.env"
-        content: |
-          MONGODB_VERSION=6.0
-          MONGODB_REPLICA_SET_NAME=rs0
-          MONGODB_ADVERTISED_HOSTNAME={{ ip_db_server }}
-          MONGODB_ENABLE_JOURNAL=true
-          ALLOW_EMPTY_PASSWORD=no
-          MONGODB_ROOT_USER=admin
-          MONGODB_ROOT_PASSWORD=passworddevelopmentservermongodb12
-          MONGODB_REPLICA_SET_KEY=3F1FCCBS0RhyuUm3AHcfbIQVYBqNPujFd2RqtvDxRL5g2HT0QVaJFoje0ws+L7
-          MONGODB_HOST={{ ip_db_server }}
-          MONGODB_PORT_NUMBER=27017
-          MONGODB_DATABASE=rocketchat
-          MONGO_AUTH_SOURCE=admin
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
+      - name: Ensure Rocket.Chat directory exists
+        ansible.builtin.file:
+          path: "/home/{{ ansible_user }}/rocket-chat"
+          state: directory
+          owner: "{{ ansible_user }}"
+          group: "{{ ansible_user }}"
+          mode: "0755"
+
+      - name: Create .env file for MongoDB
+        ansible.builtin.copy:
+          dest: "/home/{{ ansible_user }}/rocket-chat/.env"
+          content: |
+            MONGODB_VERSION=6.0
+            MONGODB_REPLICA_SET_NAME=rs0
+            MONGODB_ADVERTISED_HOSTNAME=ada-aja
+            MONGODB_ENABLE_JOURNAL=true
+            ALLOW_EMPTY_PASSWORD=no
+            MONGODB_ROOT_USER=admin
+            MONGODB_ROOT_PASSWORD=passworddevelopmentservermongodb12
+            MONGODB_REPLICA_SET_KEY=3F1FCCBS0RhyuUm3AHcfbIQVYBqNPujFd2RqtvDxRL5g2HT0QVaJFoje0ws+L7
+            MONGODB_HOST=ada-aja
+            MONGODB_PORT_NUMBER=27017
+            MONGODB_DATABASE=rocketchat
+            MONGO_AUTH_SOURCE=admin
+          owner: "{{ ansible_user }}"
+          group: "{{ ansible_user }}"
+          mode: "0644"
+        become: true
 
     - name: Ensure .env file exists and is not empty
       ansible.builtin.stat:
@@ -85,12 +95,6 @@
       ansible.builtin.debug:
         msg: ".env file is present and has content."
       when: env_file_stat.stat.exists == true and env_file_stat.stat.size > 0
-
-    - name: Start MongoDB server with Docker Compose
-      ansible.builtin.shell: >
-        docker compose -f /home/{{ ansible_user }}/rocket-chat/mongodb.yml up -d
-      register: docker_compose_up_mongo
-      changed_when: "'Starting' in docker_compose_up_mongo.stdout or 'Creating' in docker_compose_up_mongo.stdout"
 
     - name: Ensure nginx certificates directory exists
       ansible.builtin.file:
