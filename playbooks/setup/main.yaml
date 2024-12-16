@@ -1,10 +1,9 @@
 - name: Setup global configuration for Rocket.Chat
-  hosts: localhost
+  hosts: localhost # Pastikan ini menggunakan localhost untuk server lokal
   become: true
   gather_facts: true
   tasks:
 
-  # Install Docker if not installed
   - name: Install Docker if not installed
     block:
     - name: Update APT cache
@@ -55,18 +54,34 @@
       become: true
 
     - name: Verify Docker installation
-      ansible.builtin.command:
-        cmd: docker --version
+      ansible.builtin.command: docker --version
       register: docker_version
       changed_when: false
 
     - name: Verify Docker Compose installation
-      ansible.builtin.command:
-        cmd: docker-compose --version
+      ansible.builtin.command: docker-compose --version
       register: docker_compose_version
       changed_when: false
 
-  # Deploy Rocket.Chat and MongoDB application
+  - name: Setup Telnet and server connections in the same network
+    block:
+    - name: Configure Base UFW Settings
+      community.general.ufw:
+        rule: allow
+        port: ssh
+        proto: tcp
+
+    - name: Enable UFW Firewall
+      community.general.ufw:
+        state: enabled
+
+    - name: Open Ports for Nginx Servers
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop: [ '80', '443', '9100', '9113', '9216', '9090', '9099', '3030', '3000', '9093' ]
+
   - name: Deploy Rocket.Chat and MongoDB application
     block:
     - name: Ensure Rocket.Chat directory exists
@@ -87,19 +102,27 @@
         group: "{{ ansible_user }}"
         recurse: yes
 
+    - name: Ensure Rocket.Chat directory exists
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/rocket-chat"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
+
     - name: Create .env file for MongoDB
       ansible.builtin.copy:
         dest: "/home/{{ ansible_user }}/rocket-chat/.env"
         content: |
           MONGODB_VERSION=6.0
           MONGODB_REPLICA_SET_NAME=rs0
-          MONGODB_ADVERTISED_HOSTNAME=localhost
+          MONGODB_ADVERTISED_HOSTNAME=ada-aja
           MONGODB_ENABLE_JOURNAL=true
           ALLOW_EMPTY_PASSWORD=no
           MONGODB_ROOT_USER=admin
           MONGODB_ROOT_PASSWORD=passworddevelopmentservermongodb12
           MONGODB_REPLICA_SET_KEY=3F1FCCBS0RhyuUm3AHcfbIQVYBqNPujFd2RqtvDxRL5g2HT0QVaJFoje0ws+L7
-          MONGODB_HOST=localhost
+          MONGODB_HOST=ada-aja
           MONGODB_PORT_NUMBER=27017
           MONGODB_DATABASE=rocketchat
           MONGO_AUTH_SOURCE=admin
@@ -129,10 +152,16 @@
         state: directory
         mode: '0755'
 
+    - name: Check if SSL certificate already exists
+      ansible.builtin.stat:
+        path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
+      register: cert_stat
+
     - name: Generate SSL certificate and key if not exists
-      ansible.builtin.command: >
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key -out /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
-      creates: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
+      ansible.builtin.command:
+        cmd: >
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key -out /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
+      when: cert_stat.stat.exists == false
 
     - name: Set permissions for certificate files
       ansible.builtin.file:
@@ -146,6 +175,6 @@
 
     - name: Start Rocket.Chat server with Docker Compose
       ansible.builtin.shell: >
-        docker compose -f /home/{{ ansible_user }}/rocket-chat/nginx-rochat.yml up -d
+        docker-compose -f /home/{{ ansible_user }}/rocket-chat/nginx-rochat.yml up -d
       register: docker_compose_up_chat
       changed_when: "'Starting' in docker_compose_up_chat.stdout or 'Creating' in docker_compose_up_chat.stdout"
