@@ -27,8 +27,8 @@ services:
     image: nginx:latest
     restart: "no"
     volumes:
-    - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-    - ./nginx/certs:/etc/nginx/certs:ro
+    - /home/root/seal-final/rocket-chat/nginx/certs:/etc/nginx/certs:ro
+    - /home/root/seal-final/rocket-chat/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
     - "80:80"
     - "443:443"
