@@ -30,11 +30,6 @@
       state: directory
       mode: '0755'
 
-  - name: Generate SSL certificate and key
-    ansible.builtin.command:
-      cmd: >
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/ubuntu/rocket-chat/nginx/certs/server.key -out /home/ubuntu/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
-
   - name: Set permissions for certificate files
     ansible.builtin.file:
       path: "/home/ubuntu/rocket-chat/nginx/certs/server.crt"
@@ -44,7 +39,3 @@
     ansible.builtin.file:
       path: "/home/ubuntu/rocket-chat/nginx/certs/server.key"
       mode: '0600'
-
-  - name: Start Rocket.Chat server with Docker Compose
-    ansible.builtin.command:
-      cmd: docker-compose -f /home/ubuntu/rocket-chat/nginx-rochat.yml up -d
