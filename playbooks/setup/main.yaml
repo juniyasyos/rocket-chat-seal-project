@@ -46,7 +46,7 @@
       block:
       - name: Synchronize Rocket.Chat containerization files
         ansible.posix.synchronize:
-          src: "../../templates/"
+          src: "/root/seal-final/templates/"
           dest: "/home/{{ ansible_user }}/rocket-chat/"
           mode: push
           recursive: yes
