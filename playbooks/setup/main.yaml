@@ -1,0 +1,66 @@
+- name: Setup global configuration for Rocket.Chat
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+  - name: Ensure Docker is installed
+    block:
+    - name: Check Docker installation
+      ansible.builtin.command:
+        cmd: docker --version
+      register: docker_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install Docker if not installed
+      ansible.builtin.include_role:
+        name: docker
+      when: docker_check.rc != 0
+
+    rescue:
+    - name: Fail if Docker installation fails
+      ansible.builtin.fail:
+        msg: "Docker installation failed. Check Docker role or system configuration."
+
+  - name: Setup Telnet and server connections in the same network
+    ansible.builtin.include_tasks: ../helpers/connections.yaml
+
+  - name: Deploy Rocket.Chat and MongoDB application
+    block:
+    - name: Setup Rocket.Chat and MongoDB
+      ansible.builtin.include_tasks: ../helpers/application.yaml
+
+    - name: Start MongoDB server with Docker Compose
+      ansible.builtin.shell: >
+        docker compose -f /home/{{ ansible_user }}/rocket-chat/mongodb.yml up -d
+      register: docker_compose_up_mongo
+      changed_when: "'Starting' in docker_compose_up_mongo.stdout or 'Creating' in docker_compose_up_mongo.stdout"
+      
+
+    - name: Ensure nginx certificates directory exists
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs"
+        state: directory
+        mode: '0755'
+
+    - name: Generate SSL certificate and key if not exists
+      ansible.builtin.command: >
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key -out /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
+      args:
+        creates: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
+
+    - name: Set permissions for certificate files
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt"
+        mode: '0644'
+
+    - name: Set permissions for key files
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
+        mode: '0600'
+
+    - name: Start Rocket.Chat server with Docker Compose
+      ansible.builtin.shell: >
+        docker compose -f /home/{{ ansible_user }}/rocket-chat/nginx-rochat.yml up -d
+      register: docker_compose_up_chat
+      changed_when: "'Starting' in docker_compose_up_chat.stdout or 'Creating' in docker_compose_up_chat.stdout"

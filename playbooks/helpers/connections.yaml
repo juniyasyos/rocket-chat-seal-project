@@ -1,0 +1,16 @@
+- name: Configure Base UFW Settings
+  community.general.ufw:
+    rule: allow
+    port: ssh
+    proto: tcp
+
+- name: Enable UFW Firewall
+  community.general.ufw:
+    state: enabled
+
+- name: Open Ports for Nginx Servers
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: [ '80', '443', '9100', '9113', '9216', '9090', '9099', '3030', '3000', '9093' ]
