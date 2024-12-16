@@ -45,11 +45,6 @@
       state: directory
       mode: '0755'
 
-  - name: Check if SSL certificate already exists
-    ansible.builtin.stat:
-      path: "/home/ubuntu/rocket-chat/nginx/certs/server.key"
-    register: cert_stat
-
   - name: Generate SSL certificate and key if not exists
     ansible.builtin.command:
       cmd: >
@@ -69,5 +64,4 @@
   - name: Start Rocket.Chat server with Docker Compose
     ansible.builtin.shell: >
       docker-compose -f /home/ubuntu/rocket-chat/nginx-rochat.yml up -d
-    register: docker_compose_up_chat
-    changed_when: "'Starting' in docker_compose_up_chat.stdout or 'Creating' in docker_compose_up_chat.stdout"
+    
