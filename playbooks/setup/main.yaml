@@ -4,23 +4,6 @@
   hosts: localhost
   become: true
   tasks:
-  - name: Ensure Rocket.Chat directory exists
-    ansible.builtin.file:
-      path: "/home/{{ ansible_user }}/rocket-chat"
-      state: directory
-      owner: "{{ ansible_user }}"
-      group: "{{ ansible_user }}"
-      mode: "0755"
-
-  - name: Copy individual files from folder
-    ansible.builtin.copy:
-      src: "{{ item }}"
-      dest: "/home/{{ ansible_user }}/rocket-chat/{{ item | basename }}"
-      mode: "0755"
-      owner: "{{ ansible_user }}"
-      group: "{{ ansible_user }}"
-    loop: "{{ lookup('fileglob', '/root/seal-final/templates/*') }}"
-
   - name: Create .env file for MongoDB
     ansible.builtin.copy:
       dest: "/home/{{ ansible_user }}/rocket-chat/.env"
