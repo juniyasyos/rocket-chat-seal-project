@@ -43,23 +43,3 @@
       url: "https://github.com/docker/compose/releases/latest/download/docker-compose-Linux-x86_64"
       dest: /usr/local/bin/docker-compose
       mode: '0755'
-
-  - name: Verify Docker installation
-    ansible.builtin.command:
-      cmd: docker --version
-    register: docker_version
-    changed_when: false
-
-  - name: Verify Docker Compose installation
-    ansible.builtin.command:
-      cmd: docker-compose --version
-    register: docker_compose_version
-    changed_when: false
-
-  - name: Debug Docker version
-    ansible.builtin.debug:
-      msg: "Docker version: {{ docker_version.stdout }}"
-
-  - name: Debug Docker Compose version
-    ansible.builtin.debug:
-      msg: "Docker Compose version: {{ docker_compose_version.stdout }}"
