@@ -4,12 +4,6 @@
   hosts: localhost
   become: true
   tasks:
-  - name: Configure Base UFW Settings
-    community.general.ufw:
-      rule: allow
-      port: ssh
-      proto: tcp
-
   - name: Enable UFW Firewall
     community.general.ufw:
       state: enabled
