@@ -4,7 +4,7 @@
   gather_facts: true
   tasks:
 
-  # Install Docker only if not installed
+  # Install Docker if not installed
   - name: Install Docker if not installed
     block:
     - name: Update APT cache
@@ -55,25 +55,16 @@
       become: true
 
     - name: Verify Docker installation
-      ansible.builtin.command: docker --version
+      ansible.builtin.command:
+        cmd: docker --version
       register: docker_version
       changed_when: false
 
     - name: Verify Docker Compose installation
-      ansible.builtin.command: docker-compose --version
+      ansible.builtin.command:
+        cmd: docker-compose --version
       register: docker_compose_version
       changed_when: false
-
-  # Skip UFW setup for local environment
-  - name: Skip UFW setup for local server
-    block:
-    - name: Configure Base UFW Settings
-      ansible.builtin.debug:
-        msg: "Skipping UFW setup on local server"
-
-    - name: Open Ports for Nginx Servers (skipped)
-      ansible.builtin.debug:
-        msg: "Skipping port opening for Nginx servers in UFW"
 
   # Deploy Rocket.Chat and MongoDB application
   - name: Deploy Rocket.Chat and MongoDB application
