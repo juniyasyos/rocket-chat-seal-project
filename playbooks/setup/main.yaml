@@ -39,3 +39,4 @@
     ansible.builtin.file:
       path: "/home/ubuntu/rocket-chat/nginx/certs/server.key"
       mode: '0600'
+iya
