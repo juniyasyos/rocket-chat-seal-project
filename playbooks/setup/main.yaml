@@ -24,32 +24,16 @@
       group: "{{ ansible_user }}"
       mode: "0644"
 
-  - name: Ensure .env file exists and is not empty
-    ansible.builtin.stat:
-      path: "/home/ubuntu/rocket-chat/.env"
-    register: env_file_stat
-
-  - name: Fail if .env file does not exist or is empty
-    ansible.builtin.fail:
-      msg: ".env file does not exist or is empty. Please check the creation process."
-    when: env_file_stat.stat.exists == false or env_file_stat.stat.size == 0
-
-  - name: Debug the status of .env file
-    ansible.builtin.debug:
-      msg: ".env file is present and has content."
-    when: env_file_stat.stat.exists == true and env_file_stat.stat.size > 0
-
   - name: Ensure nginx certificates directory exists
     ansible.builtin.file:
       path: "/home/ubuntu/rocket-chat/nginx/certs"
       state: directory
       mode: '0755'
 
-  - name: Generate SSL certificate and key if not exists
+  - name: Generate SSL certificate and key
     ansible.builtin.command:
       cmd: >
         openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/ubuntu/rocket-chat/nginx/certs/server.key -out /home/ubuntu/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
-    when: cert_stat.stat.exists == false
 
   - name: Set permissions for certificate files
     ansible.builtin.file:
@@ -64,4 +48,3 @@
   - name: Start Rocket.Chat server with Docker Compose
     ansible.builtin.shell: >
       docker-compose -f /home/ubuntu/rocket-chat/nginx-rochat.yml up -d
-    
