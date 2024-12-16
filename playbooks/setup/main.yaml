@@ -6,7 +6,7 @@
   tasks:
   - name: Create .env file for MongoDB
     ansible.builtin.copy:
-      dest: "/home/{{ ansible_user }}/rocket-chat/.env"
+      dest: "/home/ubuntu/rocket-chat/.env"
       content: |
         MONGODB_VERSION=6.0
         MONGODB_REPLICA_SET_NAME=rs0
@@ -26,7 +26,7 @@
 
   - name: Ensure .env file exists and is not empty
     ansible.builtin.stat:
-      path: "/home/{{ ansible_user }}/rocket-chat/.env"
+      path: "/home/ubuntu/rocket-chat/.env"
     register: env_file_stat
 
   - name: Fail if .env file does not exist or is empty
@@ -41,33 +41,33 @@
 
   - name: Ensure nginx certificates directory exists
     ansible.builtin.file:
-      path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs"
+      path: "/home/ubuntu/rocket-chat/nginx/certs"
       state: directory
       mode: '0755'
 
   - name: Check if SSL certificate already exists
     ansible.builtin.stat:
-      path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
+      path: "/home/ubuntu/rocket-chat/nginx/certs/server.key"
     register: cert_stat
 
   - name: Generate SSL certificate and key if not exists
     ansible.builtin.command:
       cmd: >
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key -out /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/ubuntu/rocket-chat/nginx/certs/server.key -out /home/ubuntu/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
     when: cert_stat.stat.exists == false
 
   - name: Set permissions for certificate files
     ansible.builtin.file:
-      path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt"
+      path: "/home/ubuntu/rocket-chat/nginx/certs/server.crt"
       mode: '0644'
 
   - name: Set permissions for key files
     ansible.builtin.file:
-      path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
+      path: "/home/ubuntu/rocket-chat/nginx/certs/server.key"
       mode: '0600'
 
   - name: Start Rocket.Chat server with Docker Compose
     ansible.builtin.shell: >
-      docker-compose -f /home/{{ ansible_user }}/rocket-chat/nginx-rochat.yml up -d
+      docker-compose -f /home/ubuntu/rocket-chat/nginx-rochat.yml up -d
     register: docker_compose_up_chat
     changed_when: "'Starting' in docker_compose_up_chat.stdout or 'Creating' in docker_compose_up_chat.stdout"
