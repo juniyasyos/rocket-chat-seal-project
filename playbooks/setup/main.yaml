@@ -1,180 +1,91 @@
-- name: Setup global configuration for Rocket.Chat
-  hosts: localhost # Pastikan ini menggunakan localhost untuk server lokal
+# setup.yaml
+---
+- name: Setup Rocket.Chat and MongoDB
+  hosts: localhost
   become: true
-  gather_facts: true
   tasks:
+  - name: Ensure Rocket.Chat directory exists
+    ansible.builtin.file:
+      path: "/home/{{ ansible_user }}/rocket-chat"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: "0755"
 
-  - name: Install Docker if not installed
-    block:
-    - name: Update APT cache
-      ansible.builtin.apt:
-        update_cache: yes
-      become: true
+  - name: Copy Rocket.Chat containerization files for MongoDB setup
+    ansible.builtin.copy:
+      src: "/root/seal-final/templates/"
+      dest: "/home/{{ ansible_user }}/rocket-chat/"
+      mode: "0755"
+      remote_src: yes
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      recurse: yes
 
-    - name: Install Docker dependencies
-      ansible.builtin.apt:
-        name:
-        - apt-transport-https
-        - ca-certificates
-        - curl
-        - software-properties-common
-        state: present
-      become: true
+  - name: Create .env file for MongoDB
+    ansible.builtin.copy:
+      dest: "/home/{{ ansible_user }}/rocket-chat/.env"
+      content: |
+        MONGODB_VERSION=6.0
+        MONGODB_REPLICA_SET_NAME=rs0
+        MONGODB_ADVERTISED_HOSTNAME=ada-aja
+        MONGODB_ENABLE_JOURNAL=true
+        ALLOW_EMPTY_PASSWORD=no
+        MONGODB_ROOT_USER=admin
+        MONGODB_ROOT_PASSWORD=passworddevelopmentservermongodb12
+        MONGODB_REPLICA_SET_KEY=3F1FCCBS0RhyuUm3AHcfbIQVYBqNPujFd2RqtvDxRL5g2HT0QVaJFoje0ws+L7
+        MONGODB_HOST=ada-aja
+        MONGODB_PORT_NUMBER=27017
+        MONGODB_DATABASE=rocketchat
+        MONGO_AUTH_SOURCE=admin
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: "0644"
 
-    - name: Add Docker GPG key
-      ansible.builtin.apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
-      become: true
+  - name: Ensure .env file exists and is not empty
+    ansible.builtin.stat:
+      path: "/home/{{ ansible_user }}/rocket-chat/.env"
+    register: env_file_stat
 
-    - name: Add Docker APT repository
-      ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        state: present
-      become: true
+  - name: Fail if .env file does not exist or is empty
+    ansible.builtin.fail:
+      msg: ".env file does not exist or is empty. Please check the creation process."
+    when: env_file_stat.stat.exists == false or env_file_stat.stat.size == 0
 
-    - name: Install Docker Engine
-      ansible.builtin.apt:
-        name: docker-ce
-        state: present
-      become: true
+  - name: Debug the status of .env file
+    ansible.builtin.debug:
+      msg: ".env file is present and has content."
+    when: env_file_stat.stat.exists == true and env_file_stat.stat.size > 0
 
-    - name: Ensure current user is in the Docker group
-      ansible.builtin.user:
-        name: "{{ ansible_user }}"
-        groups: docker
-        append: yes
-      become: true
+  - name: Ensure nginx certificates directory exists
+    ansible.builtin.file:
+      path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs"
+      state: directory
+      mode: '0755'
 
-    - name: Download Docker Compose binary
-      ansible.builtin.get_url:
-        url: "https://github.com/docker/compose/releases/latest/download/docker-compose-Linux-x86_64"
-        dest: /usr/local/bin/docker-compose
-        mode: '0755'
-      become: true
+  - name: Check if SSL certificate already exists
+    ansible.builtin.stat:
+      path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
+    register: cert_stat
 
-    - name: Verify Docker installation
-      ansible.builtin.command: docker --version
-      register: docker_version
-      changed_when: false
+  - name: Generate SSL certificate and key if not exists
+    ansible.builtin.command:
+      cmd: >
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key -out /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
+    when: cert_stat.stat.exists == false
 
-    - name: Verify Docker Compose installation
-      ansible.builtin.command: docker-compose --version
-      register: docker_compose_version
-      changed_when: false
+  - name: Set permissions for certificate files
+    ansible.builtin.file:
+      path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt"
+      mode: '0644'
 
-  - name: Setup Telnet and server connections in the same network
-    block:
-    - name: Configure Base UFW Settings
-      community.general.ufw:
-        rule: allow
-        port: ssh
-        proto: tcp
+  - name: Set permissions for key files
+    ansible.builtin.file:
+      path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
+      mode: '0600'
 
-    - name: Enable UFW Firewall
-      community.general.ufw:
-        state: enabled
-
-    - name: Open Ports for Nginx Servers
-      community.general.ufw:
-        rule: allow
-        port: "{{ item }}"
-        proto: tcp
-      loop: [ '80', '443', '9100', '9113', '9216', '9090', '9099', '3030', '3000', '9093' ]
-
-  - name: Deploy Rocket.Chat and MongoDB application
-    block:
-    - name: Ensure Rocket.Chat directory exists
-      ansible.builtin.file:
-        path: "/home/{{ ansible_user }}/rocket-chat"
-        state: directory
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0755"
-
-    - name: Copy Rocket.Chat containerization files for MongoDB setup
-      ansible.builtin.copy:
-        src: "/root/seal-final/templates/"
-        dest: "/home/{{ ansible_user }}/rocket-chat/"
-        mode: "0755"
-        remote_src: yes
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        recurse: yes
-
-    - name: Ensure Rocket.Chat directory exists
-      ansible.builtin.file:
-        path: "/home/{{ ansible_user }}/rocket-chat"
-        state: directory
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0755"
-
-    - name: Create .env file for MongoDB
-      ansible.builtin.copy:
-        dest: "/home/{{ ansible_user }}/rocket-chat/.env"
-        content: |
-          MONGODB_VERSION=6.0
-          MONGODB_REPLICA_SET_NAME=rs0
-          MONGODB_ADVERTISED_HOSTNAME=ada-aja
-          MONGODB_ENABLE_JOURNAL=true
-          ALLOW_EMPTY_PASSWORD=no
-          MONGODB_ROOT_USER=admin
-          MONGODB_ROOT_PASSWORD=passworddevelopmentservermongodb12
-          MONGODB_REPLICA_SET_KEY=3F1FCCBS0RhyuUm3AHcfbIQVYBqNPujFd2RqtvDxRL5g2HT0QVaJFoje0ws+L7
-          MONGODB_HOST=ada-aja
-          MONGODB_PORT_NUMBER=27017
-          MONGODB_DATABASE=rocketchat
-          MONGO_AUTH_SOURCE=admin
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        mode: "0644"
-      become: true
-
-    - name: Ensure .env file exists and is not empty
-      ansible.builtin.stat:
-        path: "/home/{{ ansible_user }}/rocket-chat/.env"
-      register: env_file_stat
-
-    - name: Fail if .env file does not exist or is empty
-      ansible.builtin.fail:
-        msg: ".env file does not exist or is empty. Please check the creation process."
-      when: env_file_stat.stat.exists == false or env_file_stat.stat.size == 0
-
-    - name: Debug the status of .env file
-      ansible.builtin.debug:
-        msg: ".env file is present and has content."
-      when: env_file_stat.stat.exists == true and env_file_stat.stat.size > 0
-
-    - name: Ensure nginx certificates directory exists
-      ansible.builtin.file:
-        path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs"
-        state: directory
-        mode: '0755'
-
-    - name: Check if SSL certificate already exists
-      ansible.builtin.stat:
-        path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
-      register: cert_stat
-
-    - name: Generate SSL certificate and key if not exists
-      ansible.builtin.command:
-        cmd: >
-          openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key -out /home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=localhost"
-      when: cert_stat.stat.exists == false
-
-    - name: Set permissions for certificate files
-      ansible.builtin.file:
-        path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.crt"
-        mode: '0644'
-
-    - name: Set permissions for key files
-      ansible.builtin.file:
-        path: "/home/{{ ansible_user }}/rocket-chat/nginx/certs/server.key"
-        mode: '0600'
-
-    - name: Start Rocket.Chat server with Docker Compose
-      ansible.builtin.shell: >
-        docker-compose -f /home/{{ ansible_user }}/rocket-chat/nginx-rochat.yml up -d
-      register: docker_compose_up_chat
-      changed_when: "'Starting' in docker_compose_up_chat.stdout or 'Creating' in docker_compose_up_chat.stdout"
+  - name: Start Rocket.Chat server with Docker Compose
+    ansible.builtin.shell: >
+      docker-compose -f /home/{{ ansible_user }}/rocket-chat/nginx-rochat.yml up -d
+    register: docker_compose_up_chat
+    changed_when: "'Starting' in docker_compose_up_chat.stdout or 'Creating' in docker_compose_up_chat.stdout"
