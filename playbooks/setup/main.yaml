@@ -44,13 +44,23 @@
 
     - name: Deploy Rocket.Chat and MongoDB application
       block:
-      - name: Synchronize Rocket.Chat containerization files
-        ansible.posix.synchronize:
+      - name: Ensure Rocket.Chat directory exists
+        ansible.builtin.file:
+          path: "/home/{{ ansible_user }}/rocket-chat"
+          state: directory
+          owner: "{{ ansible_user }}"
+          group: "{{ ansible_user }}"
+          mode: "0755"
+
+      - name: Copy Rocket.Chat containerization files for MongoDB setup
+        ansible.builtin.copy:
           src: "/root/seal-final/templates/"
           dest: "/home/{{ ansible_user }}/rocket-chat/"
-          mode: push
-          recursive: yes
-        become: true # Untuk memastikan task dijalankan dengan hak akses yang sesuai
+          mode: "0755"
+          remote_src: yes
+          owner: "{{ ansible_user }}"
+          group: "{{ ansible_user }}"
+          recurse: yes
 
       - name: Ensure Rocket.Chat directory exists
         ansible.builtin.file:
