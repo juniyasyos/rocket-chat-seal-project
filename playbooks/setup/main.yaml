@@ -4,24 +4,9 @@
   gather_facts: true
   tasks:
 
-  - name: Ensure Docker is installed
-    block:
-    - name: Check Docker installation
-      ansible.builtin.command:
-        cmd: docker --version
-      register: docker_check
-      changed_when: false
-      failed_when: false
-
-    - name: Install Docker if not installed
-      ansible.builtin.include_role:
-        name: docker
-      when: docker_check.rc != 0
-
-    rescue:
-    - name: Fail if Docker installation fails
-      ansible.builtin.fail:
-        msg: "Docker installation failed. Check Docker role or system configuration."
+  - name: Install Docker if not installed
+    ansible.builtin.include_role:
+      name: docker
 
   - name: Setup Telnet and server connections in the same network
     block:
