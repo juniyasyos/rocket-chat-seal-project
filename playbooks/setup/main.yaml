@@ -1,3 +1,5 @@
+# setup.yaml
+---
 - name: Setup Rocket.Chat and MongoDB
   hosts: localhost
   become: true
@@ -44,5 +46,5 @@
       mode: '0600'
 
   - name: Start Rocket.Chat server with Docker Compose
-    ansible.builtin.shell: >
-      docker-compose -f /home/ubuntu/rocket-chat/nginx-rochat.yml up -d
+    ansible.builtin.command:
+      cmd: docker-compose -f /home/ubuntu/rocket-chat/nginx-rochat.yml up -d
