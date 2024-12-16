@@ -1,5 +1,3 @@
-# setup.yaml
----
 - name: Setup Rocket.Chat and MongoDB
   hosts: localhost
   become: true
